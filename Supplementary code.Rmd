@@ -1,0 +1,131 @@
+ ---
+title: "Supplementary_code"
+output: html_notebook
+---
+
+
+```{r}
+library(ballgown)
+library(RSkittleBrewer)
+library(dplyr)
+library(genefilter)
+library(devtools)
+```
+
+
+```{r}
+All_pheno_data <- read.csv('Allpheno.csv')
+
+All_abundance_data <- ballgown(dataDir = "For_Ballgown", samplePattern = "_", meas = 'all', pData=All_pheno_data)
+
+
+All_abundance_data_filter <- subset(All_abundance_data, "rowVars(texpr(All_abundance_data)) >1",genomesubset=TRUE)
+
+save(All_abundance_data_filter, file='All_abundance_data_filter.rda')
+```
+
+
+
+
+```{r}
+All_gene_expression <- gexpr(All_abundance_data_filter)
+
+
+write.csv(All_gene_expression, 'All_gene_expression.csv')
+
+```
+
+
+
+```{r}
+All_transcript_expression <- texpr(All_abundance_data_filter, 'all')
+write.csv(All_transcript_expression, 'All_transcript_expression.csv')
+head(All_transcript_expression)
+```
+
+
+
+```{r}
+
+All_gene_expression_id <- read.csv('All_gene_expression.csv')
+
+
+All_transcript_expression <- texpr(All_abundance_data_filter, 'all')
+
+All_genename_ids <- dplyr::filter(All_transcript_expression, gene_name!=".") %>% dplyr::distinct(gene_name, gene_id)
+
+All_gene_expression_id <- right_join(All_genename_ids, All_gene_expression_id, by = c('gene_id'))
+
+
+write.csv(All_gene_expression_id, 'All_gene_expression_with_name.csv')
+
+
+
+```
+
+
+```{r}
+All_gene_expression <- read.csv('All_gene_expression_with_name.csv')
+
+head(All_gene_expression)
+
+```
+
+
+
+```{r}
+All_gene_expression <- All_gene_expression %>% mutate(RT112_log2_Q_DMSO = log2(FPKM.RT112_10Q/FPKM.RT112_DMSO))
+All_gene_expression <- All_gene_expression %>% mutate(RT4_log2_Q_DMSO = log2(FPKM.RT4_50Q/FPKM.RT4_DMSO))
+All_gene_expression <- All_gene_expression %>% mutate(SW780_log2_Q_DMSO = log2(FPKM.SW780_25Q/FPKM.SW780_DMSO))
+
+All_gene_expression <- All_gene_expression %>% mutate(log2_DMSO_SW780_RT4 = log2(FPKM.SW780_DMSO/FPKM.RT4_DMSO))
+All_gene_expression <- All_gene_expression %>% mutate(log2_DMSO_SW780_RT112 = log2(FPKM.SW780_DMSO/FPKM.RT112_DMSO))
+```
+
+
+
+```{r}
+All_gene_expression <- All_gene_expression %>% arrange(RT4_log2_Q_DMSO)
+
+Common_Q_downregulate  <- All_gene_expression %>% filter(RT112_log2_Q_DMSO < -0.3, RT4_log2_Q_DMSO < -0.3, SW780_log2_Q_DMSO < -0.3)
+
+head(Common_Q_downregulate)
+
+Common_Q_downregulate <- select(Common_Q_downregulate, -X)
+Common_Q_downregulate <- filter(Common_Q_downregulate, gene_name!="NA")
+
+head(Common_Q_downregulate)
+
+Common_Q_downregulate[Common_Q_downregulate == -Inf] <- -999
+Common_Q_downregulate[Common_Q_downregulate == Inf] <- 999
+
+head(Common_Q_downregulate)
+
+write.csv(Common_Q_downregulate, 'common_Q_downregulate_more_stringent.csv')
+
+```
+
+
+```{r}
+All_gene_expression <- All_gene_expression %>% arrange(RT4_log2_Q_DMSO)
+
+Common_Q_upregulate  <- All_gene_expression %>% filter(RT112_log2_Q_DMSO > 1, RT4_log2_Q_DMSO > 1, SW780_log2_Q_DMSO > 1)
+
+head(Common_Q_upregulate)
+
+Common_Q_upregulate <- select(Common_Q_upregulate, -X)
+Common_Q_upregulate <- filter(Common_Q_upregulate, gene_name!="NA")
+
+head(Common_Q_upregulate)
+
+Common_Q_upregulate[Common_Q_upregulate == -Inf] <- -999
+Common_Q_upregulate[Common_Q_upregulate == Inf] <- 999
+
+head(Common_Q_upregulate)
+
+write.csv(Common_Q_upregulate, 'Common_Q_upregulate.csv')
+
+```
+
+
+
